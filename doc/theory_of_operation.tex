@@ -1,0 +1,92 @@
+\documentclass[12pt,a4paper]{article}
+
+%opening
+\title{Theory of Operation}
+\author{Benjamin J. Noack}
+\begin{document}
+
+\maketitle
+\begin{abstract}
+	How Things Work
+\end{abstract}
+
+\section{Electronics}
+
+\subsection{Pin Connections}
+
+\begin{tabular}{| c| c| c|}
+	\hline
+	J1-2 & PTC3 & MSGEQ7 Reset \\
+	\hline
+	J1-2 & PTC4 & MSGEQ7 Strobe \\
+	\hline
+	J1-14 & ADC0-4 & MSGEQ7 Out \\
+	\hline
+	J2-2 & PTB18 & Encoder Phase A \\
+	\hline
+	J2-4 & PTB19 & Encoder Phase B \\
+	\hline
+	J2-6 & PTD0 & Encoder Button \\
+	\hline
+	J2-13 & I2C0-SCL & HT16K33 SCL \\
+	\hline
+	J2-15 & I2C0-SDA & HT16K33 SDA \\
+	\hline
+	J4-2 & ADC1-10 & Equalizer Band 0 \\
+	\hline
+	J4-4 & ADC1-11 & Equalizer Band 1 \\
+	\hline
+	J4-6 & ADC1-12 & Equalizer Band 2 \\
+	\hline
+	J4-8 & ADC1-13 & Equalizer Band 3 \\
+	\hline
+	J4-7 & ADC1-16 & Equalizer Band 4 \\
+	\hline
+	J6-4 & SPI1-PCS0 & MAX7219 CS \\
+	\hline
+	J6-6 & SPI1-SOUT & MAX7219 MOSI \\
+	\hline
+	J6-5 & SPI1-SCK & MAX7219 SCK \\
+	\hline
+\end{tabular}
+
+\appendix
+\section{Timer Configuration}
+
+The BARS task is designed to run at a fixed frequency of 60Hz (or a period of 16.6 ms).
+One of the K66's Flex Timer modules is used as a simple timer.
+An interrupt will fire when the timer overflows.
+The ISR will send a signal releasing the task.
+
+The timer's CNT (count) register is 16 bits.
+Therefore, the maximum value the counter can hold is 0xFFFF (65,535).
+The timer "ticks" at the frequency of the supplied clock.
+The supplied bus clock has a frequency of 60MHz.
+Therefore, the period of a tick is \(\frac{1}{60000000} = 1.6 \times 10^{-8}\).
+Even if the maximum value (0xFFFF) were used as the MOD (modulo) value for the counter,
+it would overflow every \(\frac{1}{60000000} \times 65353 = 0.00109225\),
+or roughly 1.09 ms. \(\frac{1}{0.00109225} = 915.54\) or roughly 915Hz. Way too fast.
+
+The solution is to divide the timer's clock signal.
+Various powers of two are available as clock dividers.
+If the clock is divided by 16 then the frequency is \(\frac{60000000}{16} = 3750000\)
+or 3.75MHz.
+The period of the clock is then \(\frac{1}{3750000} = 2.66 \times 10^{-7}\).
+It is then a matter of determining the correct modulo value to achieve 60Hz overflow frequency.
+The problem may be expressed generally as the following.
+Where \(P_t\) is the target period, \(P_c\) is the input clock frequency, and \(t\) is the requisite ticks:
+
+\[P_t = P_c \times t \]
+
+Substituing a target frequency of 60Hz, and an input clock of 3.75MHz,
+
+\[ \frac{1}{60} = \frac{1}{3750000} \times t\]
+\[ \frac{\frac{1}{60}}{\frac{1}{3750000}} = t\]
+\[ \frac{3750000}{60} = t \]
+\[ 62500 = t \]
+
+To summarize, the timer module's input clock must be divided in order to provide a suitable time base.
+Once divided, a modulo of 62500 will cause an overrun every 16.6 ms or 60Hz.
+
+\end{document}
+
